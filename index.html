@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meal Payment Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #f4f4f9;
+    }
+    .container {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+      width: 100%;
+    }
+    h1 {
+      font-size: 1.5rem;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .meal-group {
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: space-between;
+    }
+    .meal-group input[type="number"] {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+      max-width: 12.5rem;
+      width: 4rem;
+    }
+    .meal-group .checkbox-group {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      gap: 5px;
+      flex-grow: 0;
+      flex-shrink: 0;
+      flex-basis: 10rem;
+    }
+    .meal-group .delete-btn {
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      padding: 6px 9px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .meal-group .delete-btn:hover {
+      background-color: #e60000;
+      display: flex;
+    }
+    .add-meal-btn {
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .add-meal-btn:hover {
+      background-color: #45a049;
+    }
+    .merge-meal-btn {
+      background-color: #4c77af;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 20px;
+      width: 100%;
+    }
+    .merge-meal-btn:hover {
+      background-color: #4546a0;
+    }
+    .merge-meal-btn:disabled {
+      background-color: #939eac;
+      cursor: default;
+    }
+    .results {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    .results p {
+      margin: 5px 0;
+      font-size: 1rem;
+    }
+    .decision-phase {
+      color: #ff4d4d;
+      font-weight: bold;
+    }
+    #meal-inputs{
+        padding-bottom: 1px;
+    }
+    @layer base {
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PaySavvy</h1>
+    <div id="meal-inputs">
+      <!-- Meal inputs will be dynamically generated here -->
+    </div>
+    <button class="add-meal-btn" id="add-meal-btn">+ Add</button>
+    <div class="results" id="results" style="display: none;">
+      <p id="diff"></p>
+      <p id="a-info"></p>
+      <p id="b-info"></p>
+      <p id="if-a-pays" style="display: none;"></p>
+      <p id="if-b-pays" style="display: none;"></p>
+      <p id="suggestion" class="decision-phase" style="display: none;"></p>
+    </div>
+    <button class="merge-meal-btn" id="merge-meal-btn" disabled>Merge</button>
+  </div>
+  <script>
+    // Dynamically create meal input groups with checkboxes and delete buttons
+    function createMealInputs(initialCount = 3) {
+      const mealInputsContainer = document.getElementById('meal-inputs');
+      mealInputsContainer.innerHTML = ''; // Clear previous inputs
+      for (let i = 1; i <= initialCount; i++) {
+        addMealInput(mealInputsContainer, i);
+      }
+    }
+
+    function clearAllInputs() {
+      document.querySelectorAll('.meal-group').forEach(e => {
+        e.remove();
+      });
+    }
+
+    // Add a single meal input group to the container
+    function addMealInput(container, newMealIndex, mealPrice = '', payer = '') {
+      const mealGroup = document.createElement('div');
+      const prevPayerRadios = document.getElementsByName(`payer-${newMealIndex - 1}`)
+      var isGroupDisabled = "disabled";
+      var isInputDisabled = "disabled";
+      if (prevPayerRadios.length > 0) {
+        if(Array.from(prevPayerRadios).some(el => el.checked)) {
+          isInputDisabled = "";
+        }
+      } else {
+        isInputDisabled = (newMealIndex == 1) ? "" : "disabled";
+      }
+      mealGroup.className = 'meal-group';
+      mealGroup.innerHTML = `
+        <input type="number" pattern="\d*" id="meal-${newMealIndex}" name="meal-${newMealIndex}" placeholder="Meal ${newMealIndex}"
+         min="0" value="${mealPrice === 0 ? '' : mealPrice}" ${isInputDisabled}>
+        <div class="checkbox-group">
+          <label><input type="radio" name="payer-${newMealIndex}" value="A" ${payer === 'A' ? 'checked' : ''} ${isGroupDisabled}> A Paid</label>
+          <label><input type="radio" name="payer-${newMealIndex}" value="B" ${payer === 'B' ? 'checked' : ''} ${isGroupDisabled}> B Paid</label>
+        </div>
+        <button class="delete-btn">Delete</button>
+      `;
+      container.appendChild(mealGroup);
+
+      // Add event listeners
+      const mealInput = mealGroup.querySelector(`#meal-${newMealIndex}`);
+      const payerInputs = mealGroup.querySelectorAll(`input[name="payer-${newMealIndex}"]`);
+      const deleteButton = mealGroup.querySelector('.delete-btn');
+
+      mealInput.addEventListener('input', () => {
+        updateResults();
+        saveToLocalStorage();
+      });
+      payerInputs.forEach((payerInput) =>
+        payerInput.addEventListener('change', () => {
+          updateResults();
+          saveToLocalStorage();
+        })
+      );
+      deleteButton.addEventListener('click', () => {
+        deleteMealInput(mealGroup);
+        saveToLocalStorage();
+      });
+    }
+
+    // Delete a meal input and shift remaining inputs up
+    function deleteMealInput(mealGroup) {
+      const container = document.getElementById('meal-inputs');
+      container.removeChild(mealGroup);
+
+      // Update placeholders dynamically
+      const mealGroups = container.querySelectorAll('.meal-group');
+      mealGroups.forEach((group, index) => {
+        const mealInput = group.querySelector('input[type="number"]');
+        const radioButtons = group.querySelectorAll('input[type="radio"]');
+        const newIndex = index + 1;
+        mealInput.id = `meal-${newIndex}`;
+        mealInput.name = `meal-${newIndex}`;
+        mealInput.placeholder = `Meal ${newIndex}`;
+        radioButtons.forEach((radio) => {
+          radio.name = `payer-${newIndex}`;
+          const newRadios = document.getElementsByName(radio.name);
+          newRadios.disabled = (index == 0) ? false : true;
+        });
+        const newMealInput = document.getElementById(mealInput.id);
+        newMealInput.disabled = (index == 0) ? false : true;
+      });
+      updateResults();
+    }
+
+    // Add a new meal input
+    function addNewMeal() {
+      const mealInputsContainer = document.getElementById('meal-inputs');
+      const mealGroups = mealInputsContainer.querySelectorAll('.meal-group');
+      const newIndex = mealGroups.length + 1;
+      addMealInput(mealInputsContainer, newIndex);
+    }
+
+    // Merge all existing meals down to two
+    function mergeExistingMeals() {
+      const aTotal = Number(window.aTotal);
+      const bTotal = Number(window.bTotal);
+
+      clearAllInputs();
+      createMealInputs(2);
+
+      const newInputs = document.querySelectorAll('.meal-group');
+      const newInputForA = newInputs[0];
+      const newInputForB = newInputs[1];
+
+      newInputForA.querySelector('input[type="number"]').value = aTotal;
+      newInputForA.querySelector('.checkbox-group input[value="A"]').checked = true;
+      newInputForB.querySelector('input[type="number"]').value = bTotal;
+      newInputForB.querySelector('.checkbox-group input[value="B"]').checked = true;
+
+      updateResults();
+      return;
+    }
+
+    // Calculate results for all meals
+    function updateResults() {
+      let aTotal = 0, bTotal = 0;
+      let aMeals = 0, bMeals = 0;
+      let decisionPhaseMeal = null;
+
+      const mealInputsContainer = document.getElementById('meal-inputs');
+      const mealGroups = mealInputsContainer.children;
+      let validInputFound = false;
+
+      // Process all meal inputs
+      for (let i = 0; i < mealGroups.length; i++) {
+        const mealInput = mealGroups[i].querySelector(`input[type="number"]`);
+        const payerInputs = mealGroups[i].querySelectorAll(`input[type="radio"]`);
+        const mealPrice = parseFloat(mealInput.value) || 0;
+        const payer = Array.from(payerInputs).find((input) => input.checked)?.value;
+        const payerRadios = document.getElementsByName(`payer-${i + 1}`);
+        if (mealPrice) {
+          payerRadios.forEach(el => el.disabled = false);
+        } else {
+          payerRadios.forEach(el => el.disabled = true);
+        }
+
+        if (mealPrice > 0 && payer) {
+          if (mealGroups[i + 1]){
+            const nextMealInput = mealGroups[i + 1].querySelector(`input[type="number"]`);
+            nextMealInput.disabled = false;
+            const nextPayerRadios = document.getElementsByName(`payer-${i + 2}`);
+            nextPayerRadios.disabled = false;
+          }
+          validInputFound = true;
+          if (payer === 'A') {
+            aTotal += mealPrice;
+            aMeals++;
+          } else if (payer === 'B') {
+            bTotal += mealPrice;
+            bMeals++;
+          }
+        } else if (mealPrice > 0 && !payer) {
+          decisionPhaseMeal = mealPrice;
+        }
+      }
+
+      // Show results only if at least one valid input is found
+      const resultsContainer = document.getElementById('results');
+      const ifAPays = document.getElementById('if-a-pays');
+      const ifBPays = document.getElementById('if-b-pays');
+      const suggestion = document.getElementById('suggestion');
+
+      if (validInputFound || decisionPhaseMeal !== null) {
+        const currentDifference = aTotal - bTotal;
+        const suggestedPayer =
+          Math.abs(currentDifference + 1) <= Math.abs(currentDifference - 1)
+            ? 'A'
+            : 'B';
+
+        resultsContainer.style.display = 'block';
+        var summary = `Current spending difference is ${currentDifference.toFixed(2)}. `;
+        // if (aTotal != bTotal){
+        //     summary += aTotal > bTotal ? "A has paid more." : "B has paid more.";
+        // }
+        document.getElementById('diff').innerText = summary;
+        document.getElementById(
+          'a-info'
+        ).innerText = `A has paid ${aTotal.toFixed(2)} for ${aMeals} meals.`;
+        document.getElementById(
+          'b-info'
+        ).innerText = `B has paid ${bTotal.toFixed(2)} for ${bMeals} meals.`;
+        document.getElementById(
+          'suggestion'
+        ).innerHTML = `To minimize pay difference, ${suggestedPayer} should pay.`;
+
+        // Save globally
+        window.currDiff = currentDifference.toFixed(2);
+        window.aTotal = aTotal.toFixed(2);
+        window.aMeals = aMeals;
+        window.bTotal=  bTotal.toFixed(2);
+        window.bMeals = bMeals;
+
+        // Show decision phase messages if applicable
+        if (decisionPhaseMeal !== null) {
+          const ifAPaysDifference = (aTotal + decisionPhaseMeal) - bTotal;
+          const ifBPaysDifference = aTotal - (bTotal + decisionPhaseMeal);
+          ifAPays.innerText = `If A pays, then pay difference is ${ifAPaysDifference.toFixed(2)}`;
+          ifBPays.innerText = `If B pays, then pay difference is ${ifBPaysDifference.toFixed(2)}`;
+          if (aTotal > 0 || bMeals > 0) {
+            ifAPays.style.display = 'block';
+            ifBPays.style.display = 'block';
+          }
+          suggestion.style.display = 'block';
+        } else {
+          ifAPays.style.display = 'none';
+          ifBPays.style.display = 'none';
+          suggestion.style.display = 'none';
+        }
+      } else {
+        resultsContainer.style.display = 'none';
+        ifAPays.style.display = 'none';
+        ifBPays.style.display = 'none';
+        suggestion.style.display = 'none';
+      }
+
+      // Determine if Merge should be enabled based on if either A or B's input exceeds 2
+      const validAInputs = document.querySelectorAll('input[value="A"]:checked');
+      const validBInputs = document.querySelectorAll('input[value="B"]:checked');
+      if (validAInputs.length > 1 || validBInputs.length > 1)
+        document.querySelector('#merge-meal-btn').disabled = false;
+      else if (validAInputs.length < 2 && validBInputs.length < 2){
+        document.querySelector('#merge-meal-btn').disabled = true;
+      }
+    }
+
+    function saveToLocalStorage() {
+      const mealInputsContainer = document.getElementById('meal-inputs');
+      const mealGroups = mealInputsContainer.children;
+      const meals = [];
+
+      for (let i = 0; i < mealGroups.length; i++) {
+        const mealInput = mealGroups[i].querySelector(`input[type="number"]`);
+        const payerInputs = mealGroups[i].querySelectorAll(`input[name="payer-${i + 1}"]`);
+        const mealPrice = parseFloat(mealInput.value) || 0;
+        const payer = Array.from(payerInputs).find((input) => input.checked)?.value || '';
+
+        meals.push({ mealPrice, payer });
+      }
+
+      localStorage.setItem('meals', JSON.stringify(meals));
+      localStorage.setItem('currentDifference', window.currDiff);
+      localStorage.setItem('totalPaidByA', window.aTotal);
+      localStorage.setItem('totalPaidByB', window.bTotal);
+    }
+
+    function loadFromLocalStorage() {
+      const meals = JSON.parse(localStorage.getItem('meals')) || [];
+      const mealInputsContainer = document.getElementById('meal-inputs');
+      mealInputsContainer.innerHTML = ''; // Clear previous inputs
+
+      meals.forEach((meal, index) => {
+          addMealInput(mealInputsContainer, index + 1, meal.mealPrice, meal.payer);
+      });
+
+      updateResults();
+    }
+
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', () => {
+      const meals = JSON.parse(localStorage.getItem('meals'));
+      if (meals && meals.length > 0) {
+          loadFromLocalStorage(); // Load data from localStorage if available
+      } else {
+          createMealInputs(3); // Start with 3 meal inputs by default
+      }
+      document.getElementById('add-meal-btn').addEventListener('click', addNewMeal);
+      document.getElementById('merge-meal-btn').addEventListener('click', mergeExistingMeals);
+    });
+  </script>
+</body>
+</html>
